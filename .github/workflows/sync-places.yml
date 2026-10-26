@@ -1,0 +1,32 @@
+name: Sync Places from Google Sheets
+
+on:
+  schedule:
+    # Runs daily at midnight UTC
+    - cron: '0 0 * * *'
+  # Allows you to trigger the sync manually from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Data from Apps Script
+        env:
+          APPS_SCRIPT_URL: ${{ secrets.APPS_SCRIPT_URL }}
+        run: |
+          # Fetch JSON and follow redirects (-L is required for Google Apps Script)
+          curl -s -L "$APPS_SCRIPT_URL" -o places.json
+
+      - name: Commit and Push if Changed
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add places.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync places.json from Google Sheets" && git push)
