@@ -2,9 +2,7 @@ name: Sync Places from Google Sheets
 
 on:
   schedule:
-    # Runs daily at midnight UTC
     - cron: '0 0 * * *'
-  # Allows you to trigger the sync manually from GitHub Actions tab
   workflow_dispatch:
 
 jobs:
@@ -21,8 +19,17 @@ jobs:
         env:
           APPS_SCRIPT_URL: ${{ secrets.APPS_SCRIPT_URL }}
         run: |
-          # Fetch JSON and follow redirects (-L is required for Google Apps Script)
-          curl -s -L "$APPS_SCRIPT_URL" -o places.json
+          # Fetch JSON and follow redirects (-L)
+          curl -s -L "$APPS_SCRIPT_URL" -o temp_places.json
+
+          # Verify that output is valid JSON and not an authorization error
+          if grep -q "Unauthorized access" temp_places.json; then
+            echo "::error::Apps Script returned an Unauthorized error. Check your API key and secret."
+            cat temp_places.json
+            exit 1
+          fi
+
+          mv temp_places.json places.json
 
       - name: Commit and Push if Changed
         run: |
